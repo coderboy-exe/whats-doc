@@ -6,7 +6,13 @@ from rest_framework.routers import DefaultRouter
 from knox import views as knox_views
 
 from . import views
-from .views import UsersAPI, LoginAPI, SingleUserAPI
+from .views import ( DoctorsAPIView,
+                    PatientsAPIView,
+                    UsersAPI,
+                    LoginAPI,
+                    SingleUserAPI, 
+                    AppointmentsAPI
+                    )
 
 # router = DefaultRouter()
 # router.register("", UserViewSet)
@@ -14,7 +20,10 @@ from .views import UsersAPI, LoginAPI, SingleUserAPI
 urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('users/', UsersAPI.as_view(), name='users'),
+    path('users/doctors/', DoctorsAPIView.as_view(), name='doctors'),
+    path('users/patients/', PatientsAPIView.as_view(), name='patients'),
     path('users/profile/', SingleUserAPI.as_view(), name='user'),
+    path('users/appointments/', AppointmentsAPI.as_view(), name='appointments'),
     path('api/login/', LoginAPI.as_view(), name='login'),
     path('users/logout/', knox_views.LogoutView.as_view(), name='logout'),
     # path('users/', views.all_users),

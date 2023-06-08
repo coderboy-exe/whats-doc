@@ -16,9 +16,33 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
 
 
-from .models import User
-from .serializers import UserSerializer
+from .models import User, Appointment
+from .serializers import UserSerializer, AppointmentSerializer
 # Create your views here.
+
+
+def get_doctors():
+    doctors = User.objects.filter(is_doctor=True)
+    doctors_serializer = UserSerializer(doctors, many=True)
+    return doctors_serializer.data
+
+def get_patients():
+    patients = User.objects.filter(is_patient=True)
+    patients_serializer = UserSerializer(patients, many=True)
+    return patients_serializer.data
+
+
+class DoctorsAPIView(generics.GenericAPIView):
+    def get(self, request):
+        doctors = get_doctors()
+        return Response(doctors, status=status.HTTP_200_OK)
+    
+
+class PatientsAPIView(generics.GenericAPIView):
+    def get(self, request):
+        patients = get_patients()
+        return Response(patients, status=status.HTTP_200_OK)
+
 
 
 class UsersAPI(generics.GenericAPIView):
@@ -112,3 +136,33 @@ class SingleUserAPI(generics.RetrieveUpdateAPIView):
 
 #     queryset = User.objects.all()
 #     serializer_class = UserSerializer
+
+
+class AppointmentsAPI(generics.ListCreateAPIView):
+    """ Appointments API view class """
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.validated_data['user'] = self.request.user
+
+            doctor_id = request.data['doctor']
+            doctor = User.objects.get(id=doctor_id)
+
+            if doctor:
+                serializer.validated_data['doctor'] = doctor
+            else:
+                return Response({"error": "Doctor not found"}, status.HTTP_404_NOT_FOUND)
+
+            time_choice = request.data['time_choice']
+            serializer.validated_data['time_choice'] = time_choice
+
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+
+            return Response(serializer.data, status.HTTP_201_CREATED, headers=headers)
+        
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
