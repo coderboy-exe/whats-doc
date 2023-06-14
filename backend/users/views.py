@@ -1,3 +1,5 @@
+import requests
+
 from django.shortcuts import render
 from django.http.response import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -53,11 +55,29 @@ class UsersAPI(generics.GenericAPIView):
         user_serializer = self.get_serializer(data=request.data)
 
         if user_serializer.is_valid():
+
+            chat_params = requests.post('https://api.chatengine.io/users/',
+            data={
+                "username": request.data["username"],
+                "secret": "secret",
+                "email": request.data["email"],
+                "first_name": request.data["first_name"],
+                "last_name": request.data["last_name"],
+            },
+            headers={ "Private-Key": "083e42dc-a67e-4cca-bb4f-212aeea98bd5" }
+        )
+            
             user = user_serializer.save()
+            print(user)
+
             return Response({
                 "message": "New User created successfully",
                 "user": UserSerializer(user, context=self.get_serializer_context()).data,
-                "token": AuthToken.objects.create(user)[1]}, status.HTTP_201_CREATED)
+                "token": AuthToken.objects.create(user)[1],
+                "chat_params": chat_params.json()
+                },
+                status.HTTP_201_CREATED
+            )
 
         return Response(user_serializer.errors, status.HTTP_400_BAD_REQUEST)
 
@@ -77,6 +97,16 @@ class LoginAPI(KnoxLoginView):
         if auth_serializer.is_valid():
             user = auth_serializer.validated_data['user']
             login(request, user)
+
+            chat_params = requests.get('https://api.chatengine.io/users/me/',
+                headers={
+                    "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+                    "User-Name": request.data["username"],
+                    "User-Secret": "secret",
+                }
+            )
+            print(chat_params.json())
+
             return super(LoginAPI, self).post(request, format=None)
         
         return Response(auth_serializer.errors, status.HTTP_400_BAD_REQUEST)
@@ -89,7 +119,19 @@ class SingleUserAPI(generics.RetrieveUpdateAPIView):
     def get(self, request):
         """Gets a specific user"""
         user_serializer = self.get_serializer(request.user)
-        return Response(user_serializer.data, status.HTTP_200_OK)
+        print(request.user)
+        chat_params = requests.get('https://api.chatengine.io/users/me/',
+            headers={
+                "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+                "User-Name": request.user.username,
+                "User-Secret": "secret",
+            }
+        )
+        print(chat_params.json())
+        print(request.user)
+        print(request.user.username)
+
+        return Response({f"user: {request.user.id}": user_serializer.data, "chat_params": chat_params.json()}, status.HTTP_200_OK)
 
 
 # @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -144,6 +186,10 @@ class AppointmentsAPI(generics.ListCreateAPIView):
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        """ Retrieve appointments for the authenticated user """
+        return self.queryset.filter(user=self.request.user)
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -160,9 +206,76 @@ class AppointmentsAPI(generics.ListCreateAPIView):
             time_choice = request.data['time_choice']
             serializer.validated_data['time_choice'] = time_choice
 
+            meeting_link = request.data['meeting_link']
+            serializer.validated_data['meeting_link'] = meeting_link
+
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)
 
             return Response(serializer.data, status.HTTP_201_CREATED, headers=headers)
         
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+
+
+class AppointmentUpdateAPI(generics.UpdateAPIView):
+    """ Appointment update API view class """
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """ Retrieve appointments for the authenticated user """
+        return self.queryset.filter(user=self.request.user)
+
+
+class AppointmentDeleteAPI(generics.DestroyAPIView):
+    """ Appointment delete API view class """
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """ Retrieve appointments for the authenticated user """
+        return self.queryset.filter(user=self.request.user)
+    
+
+
+class ChatsAPI(generics.GenericAPIView):
+    """Chats API view"""
+    serializer_class = UserSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        """Creates a new chat"""
+        user_serializer = self.get_serializer(request.user)
+        print(request.user)
+
+        url = 'https://api.chatengine.io/chats/'
+
+        payload = {
+            "title": f'Chat between {request.user.username} and {request.data["member"]}',
+            "is_direct_chat": True,
+        }
+
+        headers = {
+            "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+            "User-Name": request.user.username,
+            "User-Secret": "secret",
+        }
+
+        new_chat = requests.post(url, headers=headers, json=payload)
+
+        # Add other user to chat
+        chat_id = new_chat.json()["id"]
+        member_url = f'https://api.chatengine.io/chats/{chat_id}/people/'
+        member_payload = {
+            "username": request.data["member"]
+        }
+        member = requests.post(url=member_url, headers=headers, json=member_payload)
+        
+        print(member.json())
+        # Get the updated chat members
+        chat_url = f'https://api.chatengine.io/chats/{chat_id}/'
+        updated = requests.get(url=chat_url, headers=headers)
+
+        return Response(updated.json(), status.HTTP_201_CREATED)

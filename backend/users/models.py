@@ -37,6 +37,7 @@ class Appointment(models.Model):
     doctor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments_as_doctor')
     scheduled_time = models.DateTimeField(default=datetime.now)
     time_choice = models.CharField(max_length=10, choices=TIME_CHOICES, default="3 PM")
+    meeting_link = models.TextField(default='')
     
     def __str__(self):
         return f"User: {self.user.username} | Doctor: {self.doctor.username} | Scheduled Time: {self.time_choice}"
