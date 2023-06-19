@@ -85,7 +85,7 @@ class UsersAPI(generics.GenericAPIView):
         """Get all users"""
         users = User.objects.all()
         users_serializer = UserSerializer(users, many=True)
-        return Response({"all_users": users_serializer.data}, status.HTTP_200_OK)
+        return Response(users_serializer.data, status.HTTP_200_OK)
 
 
 class LoginAPI(KnoxLoginView):
@@ -96,6 +96,7 @@ class LoginAPI(KnoxLoginView):
         print (auth_serializer)
         if auth_serializer.is_valid():
             user = auth_serializer.validated_data['user']
+            print(user)
             login(request, user)
 
             chat_params = requests.get('https://api.chatengine.io/users/me/',
