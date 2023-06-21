@@ -18,8 +18,8 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView
 
 
-from .models import User, Appointment
-from .serializers import UserSerializer, AppointmentSerializer
+from .models import User, Appointment, HealthRecords
+from .serializers import UserSerializer, AppointmentSerializer, HealthRecordSerializer
 # Create your views here.
 
 
@@ -378,3 +378,55 @@ class ChatsAPI(generics.GenericAPIView):
         except Exception as err:
             return Response(err, status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
+class HealthRecordsAPI(generics.ListCreateAPIView):
+    queryset = HealthRecords.objects.all()
+    serializer_class = HealthRecordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """ Retrieve appointments for the authenticated user """
+        return self.queryset.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.validated_data['user'] = self.request.user
+
+            doctor_id = request.data['doctor']
+            doctor = User.objects.get(id=doctor_id)
+
+            if doctor:
+                serializer.validated_data['doctor'] = doctor
+            else:
+                return Response({"error": "Doctor not found"}, status.HTTP_404_NOT_FOUND)
+
+            title = request.data["title"]
+            serializer.validated_data["title"] = title
+
+            description = request.data["description"]
+            serializer.validated_data["description"] = description
+
+            prescription = request.data["prescription"]
+            serializer.validated_data["prescription"] = prescription
+
+            attachment = request.data["attachment"]
+            serializer.validated_data["attachment"] = attachment
+
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+
+            return Response(serializer.data, status.HTTP_201_CREATED, headers=headers)
+        
+        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+    
+
+    def perform_create(self, serializer):
+        """Overwrite to perform compression before saving attachment"""
+        record = serializer.save()
+
+        if record.attachment:
+            record.compress_image()
+            record.save()
+            
+        return super().perform_create(serializer)
