@@ -132,7 +132,7 @@ class SingleUserAPI(generics.RetrieveUpdateAPIView):
         print(request.user)
         print(request.user.username)
 
-        return Response({f"user: {request.user.id}": user_serializer.data, "chat_params": chat_params.json()}, status.HTTP_200_OK)
+        return Response({f"user": user_serializer.data, "chat_params": chat_params.json()}, status.HTTP_200_OK)
 
 
 # @api_view(["GET", "POST", "PUT", "DELETE"])
@@ -207,6 +207,12 @@ class AppointmentsAPI(generics.ListCreateAPIView):
             time_choice = request.data['time_choice']
             serializer.validated_data['time_choice'] = time_choice
 
+            name = request.data['name']
+            serializer.validated_data['name'] = name
+
+            description = request.data['description']
+            serializer.validated_data['description'] = description
+
             meeting_link = request.data['meeting_link']
             serializer.validated_data['meeting_link'] = meeting_link
 
@@ -247,8 +253,18 @@ class ChatsAPI(generics.GenericAPIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request):
+        if request.path.endswith('/chats/'):
+            return self.create_chat(request)
+        elif request.path.endswith('/messages/'):
+            return self.send_message(request)
+        else:
+            return Response({"error": "Invalid url endpoint"}, status.HTTP_400_BAD_REQUEST)
+
+
+    def create_chat(self, request):
         """Creates a new chat"""
         user_serializer = self.get_serializer(request.user)
+        print(user_serializer)
         print(request.user)
 
         url = 'https://api.chatengine.io/chats/'
@@ -280,3 +296,85 @@ class ChatsAPI(generics.GenericAPIView):
         updated = requests.get(url=chat_url, headers=headers)
 
         return Response(updated.json(), status.HTTP_201_CREATED)
+
+    
+    def send_message(self, request):
+        user_serializer = self.get_serializer(request.user)
+        print(user_serializer)
+        print(request.user)
+
+        chat_id = request.data["chat_id"]     
+
+        message_url = f'https://api.chatengine.io/chats/{chat_id}/messages/'
+
+        payload = {
+            "text": request.data["text"],
+            "attachment_urls": request.data["attachment_urls"],
+            "custom_json": request.data["custom_json"]
+        }
+
+        headers = {
+            "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+            "User-Name": request.user.username,
+            "User-Secret": "secret",
+        }
+
+        try:
+            new_message = requests.post(url=message_url, headers=headers, json=payload)
+            return Response(new_message.json(), status.HTTP_201_CREATED)
+        except Exception as err:
+            return Response(err, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    def get(self, request):
+        if request.path.endswith('/chats/'):
+            return self.get_chats(request)
+        elif request.path.endswith('/messages/'):
+            return self.get_messages(request)
+        else:
+            return Response({"error": "Invalid url endpoint"}, status.HTTP_400_BAD_REQUEST)
+
+
+    def get_chats(self, request):
+        user_serializer = self.get_serializer(request.user)
+        print(user_serializer)
+        print(request.user)
+
+        chats_url = f'https://api.chatengine.io/chats/'
+
+        payload = {}
+
+        headers = {
+            "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+            "User-Name": request.user.username,
+            "User-Secret": "secret",
+        }
+        try:
+            chats = requests.get(url=chats_url, headers=headers)
+            return Response(chats.json(), status.HTTP_200_OK)
+        except Exception as err:
+            return Response(err, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+    def get_messages(self, request):
+        user_serializer = self.get_serializer(request.user)
+        print(user_serializer)
+        print(request.user)
+
+        chat_id = request.data["chat_id"]     
+
+        messages_url = f'https://api.chatengine.io/chats/{chat_id}/messages/'
+
+        payload = {}
+
+        headers = {
+            "Project-ID": "88023f13-96c0-4c4c-93ad-2ad0f9262e82",
+            "User-Name": request.user.username,
+            "User-Secret": "secret",
+        }
+        try:
+            messages = requests.get(url=messages_url, headers=headers)
+            return Response(messages.json(), status.HTTP_200_OK)
+        except Exception as err:
+            return Response(err, status.HTTP_500_INTERNAL_SERVER_ERROR)
+    

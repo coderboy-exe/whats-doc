@@ -30,6 +30,7 @@ urlpatterns = [
     path('users/appointments/<int:pk>/', AppointmentUpdateAPI.as_view(), name='appointments'),
     path('users/appointments/<int:pk>/delete/', AppointmentDeleteAPI.as_view(), name='appointments'),
     path('users/chats/', ChatsAPI.as_view(), name='chats'),
+    path('users/chats/messages/', ChatsAPI.as_view(), name='messages'),
     path('api/login/', LoginAPI.as_view(), name='login'),
     path('users/logout/', knox_views.LogoutView.as_view(), name='logout'),
     # path('users/', views.all_users),
