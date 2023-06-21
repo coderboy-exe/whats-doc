@@ -25,6 +25,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class AppointmentSerializer(serializers.ModelSerializer):
     """ Appointment serializer class """
+    doctor_name = serializers.ReadOnlyField(source='doctor.username')
 
     class Meta:
         model = Appointment

@@ -1,4 +1,5 @@
 import requests
+from datetime import date
 
 from django.shortcuts import render
 from django.http.response import JsonResponse
@@ -204,8 +205,11 @@ class AppointmentsAPI(generics.ListCreateAPIView):
             else:
                 return Response({"error": "Doctor not found"}, status.HTTP_404_NOT_FOUND)
 
-            time_choice = request.data['time_choice']
-            serializer.validated_data['time_choice'] = time_choice
+            if request.data.get('date_choice'):
+                date_choice = request.data.get('date_choice')
+                serializer.validated_data['date_choice'] = date_choice
+            else:
+                date_choice = date.today
 
             name = request.data['name']
             serializer.validated_data['name'] = name
@@ -215,6 +219,12 @@ class AppointmentsAPI(generics.ListCreateAPIView):
 
             meeting_link = request.data['meeting_link']
             serializer.validated_data['meeting_link'] = meeting_link
+
+            if request.data.get('scheduled_time'):
+                scheduled_time = request.data.get('scheduled_time')
+                serializer.validated_data['scheduled_time'] = scheduled_time
+            else:
+                scheduled_time = "3 PM"
 
             self.perform_create(serializer)
             headers = self.get_success_headers(serializer.data)

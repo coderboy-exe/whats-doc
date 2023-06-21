@@ -8,6 +8,7 @@ import io
 
 from uuid import uuid4
 from datetime import datetime
+from datetime import date
 # Create your models here.
 
 class User(AbstractUser):
@@ -41,8 +42,8 @@ TIME_CHOICES = (
 class Appointment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     doctor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments_as_doctor')
-    scheduled_time = models.DateTimeField(default=datetime.now)
-    time_choice = models.CharField(max_length=10, choices=TIME_CHOICES, default="3 PM")
+    scheduled_time = models.CharField(default='3 PM', max_length=10)
+    date_choice = models.DateField(default=date.today)
     meeting_link = models.TextField(default='')
     name = models.TextField(default='')
     description = models.TextField(default='')
